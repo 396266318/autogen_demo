@@ -1,0 +1,9 @@
+asyncio
+autogen_ext==0.4.8
+autogen-agentchat==0.4.8
+autogen-ext[openai]
+streamlit>=1.28.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+pyautogen>=0.2.0
+python-dotenv>=0.19.0
