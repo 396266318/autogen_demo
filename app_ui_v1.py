@@ -24,7 +24,7 @@ from prompt_tasks import TESTCASE_WRITER_SYSTEM_MESSAGE
 
 # 设置页面配置
 st.set_page_config(
-    page_title="测试用例生成器",
+    page_title="上传需求文档&测试用例生成器",
     page_icon="✅",
     layout="wide"
 )
@@ -33,7 +33,7 @@ st.set_page_config(
 os.makedirs("data", exist_ok=True)
 
 # 页面标题
-st.title("🧪 AI 测试用例生成器")
+st.title("🧪 AI 上传需求文档&测试用例生成器")
 st.markdown("上传需求文档或输入需求描述，AI 将为你生成相应的测试用例")
 
 

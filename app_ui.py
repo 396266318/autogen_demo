@@ -10,14 +10,13 @@ import re
 import streamlit as st
 from autogen_agentchat.agents import AssistantAgent
 from llms import model_client
-from testcase_tasks import TESTCASE_WRITER_SYSTEM_MESSAGE
+from prompt_tasks import TESTCASE_WRITER_SYSTEM_MESSAGE
 import json
 import pandas as pd
 import io
 import datetime
 from pydantic import BaseModel, Field, ValidationError
 from typing import List
-
 
 # 设置页面配置
 st.set_page_config(
@@ -83,8 +82,8 @@ with st.expander("高级选项"):
     test_case_count = st.number_input(
         "生成测试用例数量",
         min_value=1,
-        max_value=20,
-        value=5,
+        max_value=30,  # 最大数
+        value=5,  # 默认条数
         step=1,
         help="指定需要生成的测试用例数量"
     )
@@ -175,7 +174,6 @@ def format_numbered_text(text):
             i += 1
 
     return "\n".join(formatted_lines)
-
 
 
 # 使用结构化方法解析测试用例，不依赖正则表达式
@@ -399,22 +397,22 @@ if submit_button and user_input:
 
     # 准备Markdown格式示例
     markdown_example = f'''## 用例ID：TC-XXX-001
-**标题**：测试用例标题
-**测试级别**：{test_level}
-**优先级**：{test_priority}
-**前置条件**：
-- 前置条件1
-- 前置条件2
-
-**测试步骤**：
-1. 第一步操作
-2. 第二步操作
-3. 第三步操作
-
-**预期结果**：
-1. 第一步预期结果
-2. 第二步预期结果
-3. 第三步预期结果'''
+        **标题**：测试用例标题
+        **测试级别**：{test_level}
+        **优先级**：{test_priority}
+        **前置条件**：
+        - 前置条件1
+        - 前置条件2
+        
+        **测试步骤**：
+        1. 第一步操作
+        2. 第二步操作
+        3. 第三步操作
+        
+        **预期结果**：
+        1. 第一步预期结果
+        2. 第二步预期结果
+        3. 第三步预期结果'''
 
     # 准备任务描述
     task = f"""

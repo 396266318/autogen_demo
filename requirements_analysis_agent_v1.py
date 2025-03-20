@@ -3,9 +3,8 @@ import asyncio
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.conditions import SourceMatchTermination
-from autogen_agentchat.messages import ToolCallSummaryMessage
+from autogen_agentchat.messages import ToolCallSummaryMessage  # 移除 Message 导入
 from autogen_agentchat.teams import RoundRobinGroupChat
-from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from docling.document_converter import DocumentConverter
 from llama_index.core import SimpleDirectoryReader, Document
@@ -196,18 +195,21 @@ class RequirementAnalysisAgent:
             system_message=req_analysis_prompt,
             model_client_stream=False,
         )
+
+        # 修复：移除不支持的response_format参数
         model_client2 = OpenAIChatCompletionClient(
             model="deepseek-chat",
             base_url="https://api.deepseek.com/v1",
             api_key="sk-38391b6e2c59451ab98a0f2a6ccd1c83",
-            response_format=BusinessRequirementList,  # type: ignore
+            # 移除response_format=BusinessRequirementList
             model_info={
                 "vision": False,
                 "function_calling": True,
-                "json_output": True,
+                "json_output": True,  # 启用JSON输出
                 "family": "unknown",
             },
         )
+
         # 需求输出智能体
         requirement_output_agent = AssistantAgent(
             name="requirement_output_agent",
@@ -229,15 +231,6 @@ class RequirementAnalysisAgent:
             model_client_stream=False,
         )
 
-        # 需求信息结构化
-        # requirement_structure_agent = AssistantAgent(
-        #     name="requirement_structure_agent",
-        #     model_client=model_client,
-        #     tools=[structure_requirement],
-        #     system_message="调用工具对`requirement_output_agent`输出的内容进行格式化",
-        #     model_client_stream=False,
-        # )
-
         # 需求入库智能体
         requirement_into_db_agent = AssistantAgent(
             name="requirement_into_db_agent",
@@ -256,11 +249,24 @@ class RequirementAnalysisAgent:
 
 
 async def main():
-    agent = RequirementAnalysisAgent(files=["api_doc.pdf"])
+    # agent = RequirementAnalysisAgent(files=["E:\\Code\\AICode\\testing2\\agent_system\\api_doc.pdf"])
+    agent = RequirementAnalysisAgent(files=["E:\\Code\\AICode\\autogen_demo\\data\\登录页面需求说明.pdf"])
     team = await agent.create_team()
-    async for message in team.run_stream(task="开始需求分析"):  # type: ignore
-        if message.source == "requirement_acquisition_agent" and isinstance(message, ToolCallSummaryMessage):
-            print("获取到的需求内容如下：" + message.content)
+
+    # 修复：使用run代替run_stream
+    task_result = await team.run(task="开始需求分析")
+    print("需求分析完成!")
+    print(f"最终结果: {task_result}")
+
+    # 如果需要查看中间过程，可以这样遍历消息历史
+    if hasattr(task_result, 'messages'):
+        print("\n消息历史:")
+        for msg in task_result.messages:
+            # 不使用Message类型检查，而是直接访问属性
+            if hasattr(msg, 'source') and hasattr(msg, 'content'):
+                print(f"{msg.source}: {msg.content[:100]}...")  # 只打印前100个字符
+            elif isinstance(msg, ToolCallSummaryMessage):
+                print(f"工具调用结果: {msg.content[:100]}...")
 
 
 if __name__ == "__main__":

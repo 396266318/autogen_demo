@@ -5,7 +5,6 @@ from autogen_agentchat.base import TaskResult
 from autogen_agentchat.conditions import SourceMatchTermination
 from autogen_agentchat.messages import ToolCallSummaryMessage
 from autogen_agentchat.teams import RoundRobinGroupChat
-from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from docling.document_converter import DocumentConverter
 from llama_index.core import SimpleDirectoryReader, Document
@@ -79,9 +78,6 @@ async def insert_into_database(requirements: BusinessRequirementList):
     return f"完成【{len(requirements.requirements)}】条需求入库。"
 
 
-# 优化代码：1、增加评审智能体（考虑用户是否参与）2、优化提示词 3、增加需求获取的来源（文档、用户输入.....）4、插入数据库（建议调用系统入库接口）
-
-
 class RequirementAnalysisAgent:
     def __init__(self, files: list[str]):
         self.files = files
@@ -98,14 +94,14 @@ class RequirementAnalysisAgent:
 
         req_analysis_prompt = """
         根据如下格式的需求文档，进行需求分析，输出需求分析报告：
-    
+
         ## 1. Profile
         **角色**：高级测试需求分析师  
         **核心能力**：
         - 需求结构化拆解与可测试性转化
         - 风险驱动的测试策略设计
         - 全链路需求追溯能力
-    
+
         ## 2. 需求结构化框架
         ### 2.1 功能需求分解
         ```markdown
@@ -116,7 +112,7 @@ class RequirementAnalysisAgent:
         - 示例：
           - 订单风控引擎（★⚠️）：实时交易风险评估
         ```
-    
+
         ### 2.2 非功能需求矩阵
         ```markdown
         | 维度       | 指标项                 | 验收标准            |
@@ -124,7 +120,7 @@ class RequirementAnalysisAgent:
         | 性能       | 支付接口响应时间       | ≤1.2s(P99)         |
         | 安全性     | 敏感信息加密           | AES-256+SSL/TLS1.3 |
         ```
-    
+
         ### 2.3 业务规则提取模板
         ```markdown
         - 规则编号：BR-{模块缩写}-001
@@ -133,7 +129,7 @@ class RequirementAnalysisAgent:
         - 示例：
           BR-PAY-003：当连续验证失败3次时，锁定账户1小时
         ```
-    
+
         ## 3. 深度分析指令
         ### 3.1 可测试性评估表
         ```markdown
@@ -141,7 +137,7 @@ class RequirementAnalysisAgent:
         |--------|-------------|------------------------|---------------------|
         | F-012  | 2           | "良好的用户体验"无量化 | 增加页面加载进度条 |
         ```
-    
+
         ### 3.2 测试策略蓝图
         ```markdown
         - [分层策略] 
@@ -149,30 +145,30 @@ class RequirementAnalysisAgent:
         - [工具链] 
           Jest(单元) + Postman(接口) + Cypress(E2E) + OWASP ZAP(安全)
         ```
-    
+
         ### 3.3 风险热点地图
         ```markdown
         🔥 高风险区（立即处理）：
         - 第三方身份认证服务降级
         - 支付金额计算精度丢失
-    
+
         🛡️ 缓解措施：
         - 实施接口mock方案
         - 增加金额四舍五入审计日志
         ```
-    
+
         ## 4. 增强版输出规范
         ### 4.1 文档结构
         ```markdown
         ## 四、测试追踪矩阵
         | 需求ID | 测试类型 | 用例数 | 自动化率 | 验收证据 |
         |--------|----------|--------|----------|----------|
-    
+
         ## 五、环境拓扑图
         - 测试集群配置：4C8G*3节点
         - 特殊设备：iOS/Android真机测试架
         ```
-    
+
         ### 4.2 用例设计规范
         ```markdown
         **TC-风险场景验证**：
@@ -183,7 +179,7 @@ class RequirementAnalysisAgent:
           - 系统自动切换备用服务节点
           - 触发告警通知运维人员
         ```
-    
+
         ## 5. 智能增强模块
         ```markdown
         [!AI辅助提示] 建议执行：
@@ -199,18 +195,21 @@ class RequirementAnalysisAgent:
             system_message=req_analysis_prompt,
             model_client_stream=False,
         )
+
+        # 修复：移除不支持的response_format参数
         model_client2 = OpenAIChatCompletionClient(
             model="deepseek-chat",
             base_url="https://api.deepseek.com/v1",
             api_key="sk-38391b6e2c59451ab98a0f2a6ccd1c83",
-            response_format=BusinessRequirementList,  # type: ignore
+            # 移除response_format=BusinessRequirementList
             model_info={
                 "vision": False,
                 "function_calling": True,
-                "json_output": True,
+                "json_output": True,  # 启用JSON输出
                 "family": "unknown",
             },
         )
+
         # 需求输出智能体
         requirement_output_agent = AssistantAgent(
             name="requirement_output_agent",
@@ -232,15 +231,6 @@ class RequirementAnalysisAgent:
             model_client_stream=False,
         )
 
-        # 需求信息结构化
-        # requirement_structure_agent = AssistantAgent(
-        #     name="requirement_structure_agent",
-        #     model_client=model_client,
-        #     tools=[structure_requirement],
-        #     system_message="调用工具对`requirement_output_agent`输出的内容进行格式化",
-        #     model_client_stream=False,
-        # )
-
         # 需求入库智能体
         requirement_into_db_agent = AssistantAgent(
             name="requirement_into_db_agent",
@@ -259,11 +249,24 @@ class RequirementAnalysisAgent:
 
 
 async def main():
-    agent = RequirementAnalysisAgent(files=["api_doc.pdf"])
-    team = asyncio.run(agent.create_team())
-    async for message in team.run_stream(task="开始需求分析"):  # type: ignore
-        if message.source == "requirement_acquisition_agent" and isinstance(message, ToolCallSummaryMessage):
-            print("获取到的需求内容如下：" + message.content)
+    # agent = RequirementAnalysisAgent(files=["E:\\Code\\AICode\\testing2\\agent_system\\api_doc.pdf"])
+    agent = RequirementAnalysisAgent(files=["E:\\Code\\AICode\\autogen_demo\\data\\登录页面需求说明.pdf"])
+    team = await agent.create_team()
+
+    # 修复：使用run代替run_stream
+    task_result = await team.run(task="开始需求分析")
+    print("需求分析完成!")
+    print(f"最终结果: {task_result}")
+
+    # 如果需要查看中间过程，可以这样遍历消息历史
+    if hasattr(task_result, 'messages'):
+        print("\n消息历史:")
+        for msg in task_result.messages:
+            # 不使用Message类型检查，而是直接访问属性
+            if hasattr(msg, 'source') and hasattr(msg, 'content'):
+                print(f"{msg.source}: {msg.content[:100]}...")  # 只打印前100个字符
+            elif isinstance(msg, ToolCallSummaryMessage):
+                print(f"工具调用结果: {msg.content[:100]}...")
 
 
 if __name__ == "__main__":

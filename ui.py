@@ -10,7 +10,7 @@ import re
 import streamlit as st
 from autogen_agentchat.agents import AssistantAgent
 from llms import model_client
-from testcase_tasks import TESTCASE_WRITER_SYSTEM_MESSAGE
+from prompt_tasks import TESTCASE_WRITER_SYSTEM_MESSAGE
 
 # 设置页面配置
 st.set_page_config(
